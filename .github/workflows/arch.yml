@@ -1,0 +1,47 @@
+name: Arch_Linux
+
+on:
+  pull_request:
+    branches: [ master ]
+  # push:
+    # branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux
+    strategy:
+      matrix:
+        cc: [gcc, clang]
+        include:
+          - cc: gcc
+            cxx: g++
+          - cc: clang
+            cxx: clang++
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+        pacman -Syu --noconfirm
+        pacman -S cmake gcc make wget curl git --noconfirm
+        curl -L https://gist.githubusercontent.com/Myralllka/e8f4e93e6bf0134b693371f1aad9d860/raw | bash
+        rm -rf /usr/bin/cc
+        rm -rf /usr/bin/c++
+
+    - name: Configure
+      run: CMAKE_C_COMPILER=${{ matrix.cc }} CMAKE_CXX_COMPILER=${{ matrix.cxx }} cmake -G"Unix Makefiles" -Bbuild
+
+    - name: Build
+      run: cmake --build build
+    
+    - name: Run tests
+      run: |
+          git clone https://github.com/ucu-cs/c_strings_auto_testing auto_tests
+          cd auto_tests
+          cp -r ../c_str_lib ./
+          ./compile.sh
+          ./bin/gtester

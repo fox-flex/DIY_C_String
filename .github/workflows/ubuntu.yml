@@ -1,0 +1,44 @@
+name: Ubuntu
+
+on:
+  pull_request:
+    branches: [ master ]
+  # push:
+    # branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        cc: [gcc, clang]
+        include:
+          - cc: gcc
+            cxx: g++
+          - cc: clang
+            cxx: clang++
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: sed 's/\r$//' apt_packages.txt | sed 's/#.*//' | xargs sudo apt-get install -y
+
+    - name: Install PVS
+      run:  curl -L https://gist.githubusercontent.com/Myralllka/e8f4e93e6bf0134b693371f1aad9d860/raw/57c66f2d90bcb5ebf94f31b4b927fd93e3b57734/install_pvs_on_linux.sh | bash
+
+
+    - name: Configure
+      run: CC=${{ matrix.cc }} CXX=${{ matrix.cxx }} cmake -G"Unix Makefiles" -Bbuild
+
+    - name: Build
+      run: cmake --build build
+
+    - name: Run tests
+      run: |
+          git clone https://github.com/ucu-cs/c_strings_auto_testing auto_tests
+          cd auto_tests
+          cp -r ../c_str_lib ./
+          ./compile.sh
+          ./bin/gtester
